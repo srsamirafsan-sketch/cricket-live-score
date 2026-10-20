@@ -1,0 +1,220 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cricket Live Score</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>🏏 Cricket Live Score</h1>
+      <p>লাইভ ক্রিকেট স্কোরবোর্ড</p>
+    </header>
+
+    <section class="card scoreboard">
+      <p id="matchName">Friendly Match</p>
+      <h2 id="battingTeam">Team A</h2>
+      <div class="score" id="score">0/0</div>
+      <p id="overs">ওভার: 0.0</p>
+      <p id="matchStatus">Live</p>
+      <p id="updatedAt"></p>
+    </section>
+
+    <section class="card">
+      <h2>স্কোরার লগইন</h2>
+      <form id="loginForm">
+        <input id="email" type="email"
+          placeholder="ইমেইল" required>
+        <input id="password" type="password"
+          placeholder="পাসওয়ার্ড" required>
+        <button type="submit">লগইন</button>
+      </form>
+      <button id="logoutBtn" class="secondary" hidden>
+        লগআউট
+      </button>
+      <p id="message" role="status"></p>
+    </section>
+
+    <section class="card" id="scorerPanel" hidden>
+      <h2>রান যোগ করুন</h2>
+      <div class="grid">
+        <button data-runs="0">Dot · 0</button>
+        <button data-runs="1">১ রান</button>
+        <button data-runs="2">২ রান</button>
+        <button data-runs="3">৩ রান</button>
+        <button data-runs="4">৪ রান</button>
+        <button data-runs="6">৬ রান</button>
+      </div>
+
+      <h2>অন্য ইভেন্ট</h2>
+      <div class="grid">
+        <button id="wicket" class="red">Wicket</button>
+        <button id="wide" class="secondary">Wide +1</button>
+        <button id="noball" class="secondary">No-ball +1</button>
+      </div>
+      <button id="complete" class="red full">
+        ম্যাচ শেষ করুন
+      </button>
+    </section>
+
+    <footer>
+      Live score powered by Supabase
+    </footer>
+  </main>
+
+<script>
+  // Supabase Dashboard থেকে নিজের তথ্য বসান।
+  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_KEY = "YOUR_PUBLIC_ANON_OR_PUBLISHABLE_KEY";
+  const MATCH_ID = 1;
+
+  const $ = id => document.getElementById(id);
+  let db;
+  let match;
+  let isScorer = false;
+  let channel;
+
+  function say(message) {
+    $("message").textContent = message;
+  }
+
+  function render(m) {
+    if (!m) return;
+    match = m;
+    $("matchName").textContent = m.match_name;
+    $("battingTeam").textContent = m.batting_team;
+    $("score").textContent = `${m.runs}/${m.wickets}`;
+    $("overs").textContent =
+      `ওভার: ${Math.floor(m.legal_balls / 6)}.${m.legal_balls % 6}`;
+    $("matchStatus").textContent = m.status;
+    $("updatedAt").textContent =
+      "সর্বশেষ আপডেট: " + new Date(m.updated_at).toLocaleTimeString();
+    $("scorerPanel").hidden = !(isScorer && m.status === "Live");
+  }
+
+  async function loadMatch() {
+    const { data, error } = await db
+      .from("matches")
+      .select("*")
+      .eq("id", MATCH_ID)
+      .single();
+
+    if (error) {
+      say("ম্যাচ লোড হয়নি: " + error.message);
+      return;
+    }
+    render(data);
+  }
+
+  async function checkScorer() {
+    const { data: { session } } = await db.auth.getSession();
+    $("logoutBtn").hidden = !session;
+    $("loginForm").hidden = !!session;
+    isScorer = false;
+
+    if (session) {
+      const { data, error } = await db.rpc("is_cricket_scorer");
+      isScorer = !error && data === true;
+      say(isScorer
+        ? "স্কোরার হিসেবে লগইন সফল।"
+        : "এই অ্যাকাউন্ট স্কোর আপডেট করার অনুমতি পায়নি।");
+    } else {
+      say("দর্শকরা লগইন ছাড়াই স্কোর দেখতে পারবেন।");
+    }
+
+    if (match) render(match);
+  }
+
+  async function event(type, runs = 0) {
+    if (!isScorer || !match || match.status !== "Live") {
+      say("স্কোরার হিসেবে লগইন করুন।");
+      return;
+    }
+
+    const { data, error } = await db.rpc("score_event", {
+      p_match_id: MATCH_ID,
+      p_event: type,
+      p_runs: runs
+    });
+
+    if (error) {
+      say("স্কোর আপডেট হয়নি: " + error.message);
+      return;
+    }
+
+    render(data);
+    say("স্কোর আপডেট হয়েছে!");
+  }
+
+  async function start() {
+    if (SUPABASE_URL.startsWith("YOUR_") ||
+        SUPABASE_KEY.startsWith("YOUR_")) {
+      say("প্রথমে কোডে Supabase URL ও Public Key বসান।");
+      return;
+    }
+
+    db = window.supabase.createClient(
+      SUPABASE_URL, SUPABASE_KEY
+    );
+
+    await loadMatch();
+    await checkScorer();
+
+    db.auth.onAuthStateChange(() => {
+      setTimeout(checkScorer, 0);
+    });
+
+    channel = db.channel("live-cricket-match")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "matches",
+        filter: "id=eq." + MATCH_ID
+      }, payload => {
+        if (payload.new) render(payload.new);
+      })
+      .subscribe();
+
+    $("loginForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const { error } = await db.auth.signInWithPassword({
+        email: $("email").value.trim(),
+        password: $("password").value
+      });
+      if (error) say("লগইন সমস্যা: " + error.message);
+      else await checkScorer();
+    });
+
+    $("logoutBtn").addEventListener("click", async () => {
+      const { error } = await db.auth.signOut();
+      if (error) say(error.message);
+      else await checkScorer();
+    });
+
+    document.querySelectorAll("[data-runs]").forEach(btn => {
+      btn.addEventListener("click", () =>
+        event("ball", Number(btn.dataset.runs)));
+    });
+
+    $("wicket").addEventListener("click", () =>
+      event("wicket"));
+
+    $("wide").addEventListener("click", () =>
+      event("wide"));
+
+    $("noball").addEventListener("click", () =>
+      event("noball"));
+
+    $("complete").addEventListener("click", () => {
+      if (confirm("ম্যাচ শেষ করবেন?")) event("complete");
+    });
+  }
+
+  start();
+</script>
+</body>
+</html>
