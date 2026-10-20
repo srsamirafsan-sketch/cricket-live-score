@@ -1,0 +1,137 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f0f4f8;
+  color: #172033;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  width: min(700px, 94%);
+  margin: 24px auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+header h1 {
+  color: #126b43;
+  font-size: clamp(25px, 5vw, 36px);
+}
+
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 18px #0000000d;
+}
+
+.scoreboard {
+  background: #123d30;
+  color: white;
+  text-align: center;
+  padding: 28px 15px;
+}
+
+.scoreboard h2 {
+  margin-bottom: 5px;
+}
+
+.score {
+  font-size: clamp(48px, 12vw, 76px);
+  font-weight: bold;
+  margin: 12px 0;
+}
+
+input {
+  width: 100%;
+  padding: 13px;
+  margin: 7px 0;
+  border: 1px solid #ccd5df;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+button {
+  padding: 13px 10px;
+  background: #16834f;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+#loginForm button {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin: 14px 0 22px;
+}
+
+.secondary {
+  background: #e3e9ef;
+  color: #172033;
+}
+
+.red {
+  background: #c73535;
+  color: white;
+}
+
+.full {
+  width: 100%;
+}
+
+#message {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+footer {
+  text-align: center;
+  color: #687386;
+  font-size: 13px;
+  padding: 12px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 420px) {
+  .container {
+    width: 95%;
+    margin-top: 12px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .grid {
+    gap: 6px;
+  }
+
+  .grid button {
+    padding: 12px 4px;
+    font-size: 14px;
+  }
+}
